@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # TI Control - CasaIdeas
 
 **TI Control** es una plataforma web interna diseñada para el departamento de Tecnología de DH Empresas Perú S.A. (CasaIdeas). Su objetivo principal es digitalizar y optimizar el seguimiento de facturación de servicios de TI (recurrentes y ocasionales), reemplazando el uso de hojas de cálculo y correos electrónicos.
@@ -116,3 +117,7 @@ Todo el apartado visual se controla sin frameworks pesados (Zero dependencias co
 
 ---
 *Desarrollado para DH Empresas Perú S.A. - Departamento de TI.*
+=======
+# Sistema-web-de-Control-de-Facturas-TI
+Un sistema web diseñado para poder manejar las facturas del área de TI en la empresa CasaIdeas, tiene funciones de mapeo de facturación fija y seguimiento de ciclo de vida de las compras
+>>>>>>> 23486d3dfe7dec3b5ebb5e59297da2752e4aaaad
