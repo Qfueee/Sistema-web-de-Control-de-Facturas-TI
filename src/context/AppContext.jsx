@@ -1,0 +1,180 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+
+const AppContext = createContext();
+export const useAppContext = () => useContext(AppContext);
+
+// ═══ DATOS INICIALES ═══
+const INITIAL_USERS = [
+  { id: '1', name: 'Admin TI', email: 'admin@casaideas.com', password: 'admin', role: 'admin' },
+  { id: '2', name: 'Visor TI', email: 'visor@casaideas.com', password: 'visor', role: 'viewer' }
+];
+
+const INITIAL_PROVIDERS = [
+  { id: '1', name: 'Ricoh del Perú', type: 'fijo', ruc: '20507540393' },
+  { id: '2', name: 'Claro Empresas', type: 'fijo', ruc: '20100017491' },
+  { id: '3', name: 'AWS Hosting', type: 'fijo', ruc: 'N/A' },
+  { id: '4', name: 'Lenovo Laptops', type: 'ocasional', ruc: '20543254798' },
+  { id: '5', name: 'Digiflow', type: 'fijo', ruc: '20602734521' },
+  { id: '6', name: 'Microsoft Ireland', type: 'ocasional', ruc: 'N/A' },
+  { id: '7', name: 'TP-Link Perú', type: 'ocasional', ruc: '20556127042' }
+];
+
+const now = new Date();
+const daysAgo = (d) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - d).toISOString();
+
+const INITIAL_INVOICES = [
+  { id: 'TR-001', provider_id: '4', providerName: 'Lenovo Laptops', amount: 8200, currency: 'PEN', status: 'cotizacion_recibida', date: daysAgo(12), type: 'ocasional', notes: '3 laptops ThinkPad E14 para área comercial' },
+  { id: 'TR-002', provider_id: '2', providerName: 'Claro Empresas', amount: 4500, currency: 'PEN', status: 'guia_recibida', date: daysAgo(5), type: 'recurrente', notes: 'Enlace dedicado 200Mbps sede principal' },
+  { id: 'TR-003', provider_id: '1', providerName: 'Ricoh del Perú', amount: 1800, currency: 'PEN', status: 'enviado_contabilidad', date: daysAgo(22), type: 'recurrente', notes: 'Mantenimiento impresoras Q2-2026' },
+  { id: 'TR-004', provider_id: '6', providerName: 'Microsoft Ireland', amount: 2400, currency: 'USD', status: 'factura_recibida', date: daysAgo(3), type: 'ocasional', notes: '50 licencias Microsoft 365 Business' },
+  { id: 'TR-005', provider_id: '5', providerName: 'Digiflow', amount: 950, currency: 'PEN', status: 'orden_compra_enviada', date: daysAgo(8), type: 'recurrente', notes: 'Servicio firma digital mensual' },
+  { id: 'TR-006', provider_id: '7', providerName: 'TP-Link Perú', amount: 3200, currency: 'PEN', status: 'cotizacion_recibida', date: daysAgo(1), type: 'ocasional', notes: '10 Access Points EAP245 para tiendas' },
+  { id: 'TR-007', provider_id: '3', providerName: 'AWS Hosting', amount: 1250, currency: 'USD', status: 'enviado_contabilidad', date: daysAgo(30), type: 'recurrente', notes: 'EC2 + RDS + S3 abril 2026' },
+  { id: 'TR-008', provider_id: '1', providerName: 'Ricoh del Perú', amount: 650, currency: 'PEN', status: 'guia_recibida', date: daysAgo(6), type: 'recurrente', notes: 'Tóners y repuestos impresora MPC3503' },
+];
+
+const INITIAL_RECURRENTS = [
+  { id: '1', day: 5, provider_id: '2', providerName: 'Claro Empresas', amount: 4500, currency: 'PEN', description: 'Enlace dedicado + telefonía' },
+  { id: '2', day: 15, provider_id: '1', providerName: 'Ricoh del Perú', amount: 1800, currency: 'PEN', description: 'Servicio de impresión' },
+  { id: '3', day: 20, provider_id: '3', providerName: 'AWS Hosting', amount: 1250, currency: 'USD', description: 'Cloud hosting mensual' },
+  { id: '4', day: 10, provider_id: '5', providerName: 'Digiflow', amount: 950, currency: 'PEN', description: 'Firma digital corporativa' },
+];
+
+// ═══ PROVIDER ═══
+export const AppContextProvider = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const [users, setUsers] = useState(() => {
+    const s = localStorage.getItem('ci_users');
+    return s ? JSON.parse(s) : INITIAL_USERS;
+  });
+  const [providers, setProviders] = useState(() => {
+    const s = localStorage.getItem('ci_providers');
+    return s ? JSON.parse(s) : INITIAL_PROVIDERS;
+  });
+  const [invoices, setInvoices] = useState(() => {
+    const s = localStorage.getItem('ci_invoices');
+    return s ? JSON.parse(s) : INITIAL_INVOICES;
+  });
+  const [recurrents, setRecurrents] = useState(() => {
+    const s = localStorage.getItem('ci_recurrents');
+    return s ? JSON.parse(s) : INITIAL_RECURRENTS;
+  });
+
+  // Pagos recurrentes marcados como pagados: { 'YYYY-MM-recurrentId': true }
+  const [paidRecurrents, setPaidRecurrents] = useState(() => {
+    const s = localStorage.getItem('ci_paid_recurrents');
+    return s ? JSON.parse(s) : {};
+  });
+
+  useEffect(() => { localStorage.setItem('ci_users', JSON.stringify(users)); }, [users]);
+  useEffect(() => { localStorage.setItem('ci_providers', JSON.stringify(providers)); }, [providers]);
+  useEffect(() => { localStorage.setItem('ci_invoices', JSON.stringify(invoices)); }, [invoices]);
+  useEffect(() => { localStorage.setItem('ci_recurrents', JSON.stringify(recurrents)); }, [recurrents]);
+  useEffect(() => { localStorage.setItem('ci_paid_recurrents', JSON.stringify(paidRecurrents)); }, [paidRecurrents]);
+
+  // Auth
+  const login = (email, password) => {
+    const user = users.find(u => u.email === email && u.password === password);
+    if (user) { setCurrentUser(user); return true; }
+    return false;
+  };
+  const logout = () => setCurrentUser(null);
+
+  // Invoices
+  const nextId = () => {
+    const nums = invoices.map(i => parseInt(i.id.replace('TR-', '')) || 0);
+    return `TR-${(Math.max(0, ...nums) + 1).toString().padStart(3, '0')}`;
+  };
+
+  const addInvoice = (invoice) => {
+    const provider = providers.find(p => p.id === invoice.provider_id);
+    setInvoices(prev => [{
+      ...invoice,
+      id: nextId(),
+      date: new Date().toISOString(),
+      providerName: provider ? provider.name : 'Desconocido',
+      status: 'cotizacion_recibida',
+      currency: invoice.currency || 'PEN',
+      notes: invoice.notes || ''
+    }, ...prev]);
+  };
+
+  const updateInvoiceStatus = (id, newStatus) => {
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: newStatus } : inv));
+  };
+
+  const updateInvoice = (id, data) => {
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...data } : inv));
+  };
+
+  const deleteInvoice = (id) => {
+    setInvoices(prev => prev.filter(inv => inv.id !== id));
+  };
+
+  // Providers
+  const addProvider = (p) => setProviders(prev => [...prev, { ...p, id: uuidv4() }]);
+  const updateProvider = (id, data) => setProviders(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+  const deleteProvider = (id) => setProviders(prev => prev.filter(p => p.id !== id));
+
+  // Users
+  const addUser = (u) => setUsers(prev => [...prev, { ...u, id: uuidv4() }]);
+  const updateUser = (id, data) => setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data } : u));
+  const deleteUser = (id) => setUsers(prev => prev.filter(u => u.id !== id));
+
+  // Recurrents
+  const addRecurrent = (item) => setRecurrents(prev => [...prev, { ...item, id: uuidv4() }]);
+  const updateRecurrent = (id, data) => setRecurrents(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
+  const deleteRecurrent = (id) => setRecurrents(prev => prev.filter(r => r.id !== id));
+
+  // Paid recurrents: marcar/desmarcar un pago recurrente como pagado en un mes
+  const getRecurrentPaidKey = (recurrentId, year, month) => `${year}-${String(month + 1).padStart(2, '0')}-${recurrentId}`;
+  const isRecurrentPaid = (recurrentId, year, month) => !!paidRecurrents[getRecurrentPaidKey(recurrentId, year, month)];
+  const toggleRecurrentPaid = (recurrentId, year, month) => {
+    const key = getRecurrentPaidKey(recurrentId, year, month);
+    setPaidRecurrents(prev => {
+      const updated = { ...prev };
+      if (updated[key]) { delete updated[key]; } else { updated[key] = true; }
+      return updated;
+    });
+  };
+
+  // Utilidad de formato — soporta tanto números como strings legacy ("S/ 8,200.00")
+  const formatCurrency = (amount, currency = 'PEN') => {
+    const symbol = currency === 'USD' ? '$ ' : 'S/ ';
+    let num = amount;
+    if (typeof amount === 'string') {
+      num = parseFloat(amount.replace(/[^0-9.-]/g, '')) || 0;
+    }
+    return symbol + Number(num).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Reset data
+  const resetData = () => {
+    localStorage.removeItem('ci_users');
+    localStorage.removeItem('ci_providers');
+    localStorage.removeItem('ci_invoices');
+    localStorage.removeItem('ci_recurrents');
+    localStorage.removeItem('ci_paid_recurrents');
+    setUsers(INITIAL_USERS);
+    setProviders(INITIAL_PROVIDERS);
+    setInvoices(INITIAL_INVOICES);
+    setRecurrents(INITIAL_RECURRENTS);
+    setPaidRecurrents({});
+  };
+
+  return (
+    <AppContext.Provider value={{
+      currentUser, login, logout,
+      users, addUser, updateUser, deleteUser,
+      providers, addProvider, updateProvider, deleteProvider,
+      invoices, addInvoice, updateInvoiceStatus, updateInvoice, deleteInvoice,
+      recurrents, addRecurrent, updateRecurrent, deleteRecurrent,
+      paidRecurrents, isRecurrentPaid, toggleRecurrentPaid,
+      formatCurrency, resetData
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+};
