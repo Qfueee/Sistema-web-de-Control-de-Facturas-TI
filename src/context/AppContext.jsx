@@ -24,12 +24,78 @@ const now = new Date();
 const daysAgo = (d) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - d).toISOString();
 
 const INITIAL_INVOICES = [
-  { id: 'TR-001', provider_id: '4', providerName: 'Lenovo Laptops', amount: 8200, currency: 'PEN', status: 'cotizacion_recibida', date: daysAgo(12), type: 'ocasional', notes: '3 laptops ThinkPad E14 para área comercial' },
+  { 
+    id: 'TR-001', 
+    provider_id: '4', 
+    providerName: 'Lenovo Laptops', 
+    amount: 8200, 
+    currency: 'PEN', 
+    status: 'cotizacion_recibida', 
+    date: daysAgo(12), 
+    type: 'ocasional', 
+    notes: '3 laptops ThinkPad E14 para área comercial',
+    capexOpex: 'CAPEX',
+    purchaseType: 'Compra',
+    sustento: 'Renovación de equipos comerciales Q2',
+    ocNumber: 'OC-2026-089',
+    costCenter: 'Ventas - 302',
+    ocDate: daysAgo(12),
+    ocAmount: 8200,
+    motivo: 'Laptops antiguas lentas',
+    invoiceNumber: '',
+    invoiceDate: '',
+    invoiceAmount: 0,
+    accountingSentDate: ''
+  },
   { id: 'TR-002', provider_id: '2', providerName: 'Claro Empresas', amount: 4500, currency: 'PEN', status: 'guia_recibida', date: daysAgo(5), type: 'recurrente', notes: 'Enlace dedicado 200Mbps sede principal' },
   { id: 'TR-003', provider_id: '1', providerName: 'Ricoh del Perú', amount: 1800, currency: 'PEN', status: 'enviado_contabilidad', date: daysAgo(22), type: 'recurrente', notes: 'Mantenimiento impresoras Q2-2026' },
-  { id: 'TR-004', provider_id: '6', providerName: 'Microsoft Ireland', amount: 2400, currency: 'USD', status: 'factura_recibida', date: daysAgo(3), type: 'ocasional', notes: '50 licencias Microsoft 365 Business' },
+  { 
+    id: 'TR-004', 
+    provider_id: '6', 
+    providerName: 'Microsoft Ireland', 
+    amount: 2400, 
+    currency: 'USD', 
+    status: 'factura_recibida', 
+    date: daysAgo(3), 
+    type: 'ocasional', 
+    notes: '50 licencias Microsoft 365 Business',
+    capexOpex: 'OPEX',
+    purchaseType: 'Servicio',
+    sustento: 'Suscripción anual licencias M365',
+    ocNumber: 'OC-2026-075',
+    costCenter: 'TI - 101',
+    ocDate: daysAgo(15),
+    ocAmount: 2400,
+    motivo: 'Licencias necesarias para nuevos colaboradores',
+    invoiceNumber: 'FC-998822',
+    invoiceDate: daysAgo(3),
+    invoiceAmount: 2400,
+    accountingSentDate: ''
+  },
   { id: 'TR-005', provider_id: '5', providerName: 'Digiflow', amount: 950, currency: 'PEN', status: 'orden_compra_enviada', date: daysAgo(8), type: 'recurrente', notes: 'Servicio firma digital mensual' },
-  { id: 'TR-006', provider_id: '7', providerName: 'TP-Link Perú', amount: 3200, currency: 'PEN', status: 'cotizacion_recibida', date: daysAgo(1), type: 'ocasional', notes: '10 Access Points EAP245 para tiendas' },
+  { 
+    id: 'TR-006', 
+    provider_id: '7', 
+    providerName: 'TP-Link Perú', 
+    amount: 3200, 
+    currency: 'PEN', 
+    status: 'cotizacion_recibida', 
+    date: daysAgo(1), 
+    type: 'ocasional', 
+    notes: '10 Access Points EAP245 para tiendas',
+    capexOpex: 'CAPEX',
+    purchaseType: 'Compra',
+    sustento: 'Proyecto de mejora Wifi tiendas Lima',
+    ocNumber: 'OC-2026-092',
+    costCenter: 'Operaciones - 204',
+    ocDate: daysAgo(1),
+    ocAmount: 3200,
+    motivo: 'Mejorar cobertura en tiendas de alta afluencia',
+    invoiceNumber: '',
+    invoiceDate: '',
+    invoiceAmount: 0,
+    accountingSentDate: ''
+  },
   { id: 'TR-007', provider_id: '3', providerName: 'AWS Hosting', amount: 1250, currency: 'USD', status: 'enviado_contabilidad', date: daysAgo(30), type: 'recurrente', notes: 'EC2 + RDS + S3 abril 2026' },
   { id: 'TR-008', provider_id: '1', providerName: 'Ricoh del Perú', amount: 650, currency: 'PEN', status: 'guia_recibida', date: daysAgo(6), type: 'recurrente', notes: 'Tóners y repuestos impresora MPC3503' },
 ];
@@ -39,6 +105,33 @@ const INITIAL_RECURRENTS = [
   { id: '2', day: 15, provider_id: '1', providerName: 'Ricoh del Perú', amount: 1800, currency: 'PEN', description: 'Servicio de impresión' },
   { id: '3', day: 20, provider_id: '3', providerName: 'AWS Hosting', amount: 1250, currency: 'USD', description: 'Cloud hosting mensual' },
   { id: '4', day: 10, provider_id: '5', providerName: 'Digiflow', amount: 950, currency: 'PEN', description: 'Firma digital corporativa' },
+];
+
+const INITIAL_PROFILES = [
+  {
+    id: 'admin',
+    name: 'Administrador',
+    permissions: {
+      viewBandeja: true,
+      viewDashboards: true,
+      viewCalendario: true,
+      viewHistorial: true,
+      viewConfiguracion: true,
+      manageUsers: true
+    }
+  },
+  {
+    id: 'viewer',
+    name: 'Visor',
+    permissions: {
+      viewBandeja: true,
+      viewDashboards: true,
+      viewCalendario: true,
+      viewHistorial: true,
+      viewConfiguracion: false,
+      manageUsers: false
+    }
+  }
 ];
 
 // ═══ PROVIDER ═══
@@ -61,6 +154,10 @@ export const AppContextProvider = ({ children }) => {
     const s = localStorage.getItem('ci_recurrents');
     return s ? JSON.parse(s) : INITIAL_RECURRENTS;
   });
+  const [profiles, setProfiles] = useState(() => {
+    const s = localStorage.getItem('ci_profiles');
+    return s ? JSON.parse(s) : INITIAL_PROFILES;
+  });
 
   // Pagos recurrentes marcados como pagados: { 'YYYY-MM-recurrentId': true }
   const [paidRecurrents, setPaidRecurrents] = useState(() => {
@@ -73,6 +170,10 @@ export const AppContextProvider = ({ children }) => {
   useEffect(() => { localStorage.setItem('ci_invoices', JSON.stringify(invoices)); }, [invoices]);
   useEffect(() => { localStorage.setItem('ci_recurrents', JSON.stringify(recurrents)); }, [recurrents]);
   useEffect(() => { localStorage.setItem('ci_paid_recurrents', JSON.stringify(paidRecurrents)); }, [paidRecurrents]);
+  useEffect(() => { localStorage.setItem('ci_profiles', JSON.stringify(profiles)); }, [profiles]);
+
+  // Permisos dinámicos
+  const userPermissions = profiles.find(p => p.id === currentUser?.role)?.permissions || {};
 
   // Auth
   const login = (email, password) => {
@@ -128,6 +229,13 @@ export const AppContextProvider = ({ children }) => {
   const updateRecurrent = (id, data) => setRecurrents(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
   const deleteRecurrent = (id) => setRecurrents(prev => prev.filter(r => r.id !== id));
 
+  // Profiles
+  const updateProfilePermissions = (profileId, newPermissions) => {
+    setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, permissions: { ...p.permissions, ...newPermissions } } : p));
+  };
+  const addProfile = (p) => setProfiles(prev => [...prev, { ...p, id: uuidv4() }]);
+  const deleteProfile = (id) => setProfiles(prev => prev.filter(p => p.id !== id));
+
   // Paid recurrents: marcar/desmarcar un pago recurrente como pagado en un mes
   const getRecurrentPaidKey = (recurrentId, year, month) => `${year}-${String(month + 1).padStart(2, '0')}-${recurrentId}`;
   const isRecurrentPaid = (recurrentId, year, month) => !!paidRecurrents[getRecurrentPaidKey(recurrentId, year, month)];
@@ -157,11 +265,13 @@ export const AppContextProvider = ({ children }) => {
     localStorage.removeItem('ci_invoices');
     localStorage.removeItem('ci_recurrents');
     localStorage.removeItem('ci_paid_recurrents');
+    localStorage.removeItem('ci_profiles');
     setUsers(INITIAL_USERS);
     setProviders(INITIAL_PROVIDERS);
     setInvoices(INITIAL_INVOICES);
     setRecurrents(INITIAL_RECURRENTS);
     setPaidRecurrents({});
+    setProfiles(INITIAL_PROFILES);
   };
 
   return (
@@ -172,6 +282,7 @@ export const AppContextProvider = ({ children }) => {
       invoices, addInvoice, updateInvoiceStatus, updateInvoice, deleteInvoice,
       recurrents, addRecurrent, updateRecurrent, deleteRecurrent,
       paidRecurrents, isRecurrentPaid, toggleRecurrentPaid,
+      profiles, updateProfilePermissions, addProfile, deleteProfile, userPermissions,
       formatCurrency, resetData
     }}>
       {children}

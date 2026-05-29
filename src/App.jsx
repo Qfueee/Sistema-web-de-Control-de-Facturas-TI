@@ -11,11 +11,30 @@ import Configuracion from './components/Configuracion';
 import Login from './components/Login';
 
 function AppLayout() {
-  const { currentUser } = useAppContext();
+  const { currentUser, userPermissions } = useAppContext();
 
   if (!currentUser) {
     return <Login />;
   }
+
+  // Componente protector de rutas
+  const ProtectedRoute = ({ element, perm }) => {
+    if (!userPermissions[perm]) {
+      if (userPermissions.viewBandeja) return <Navigate to="/" replace />;
+      if (userPermissions.viewDashboards) return <Navigate to="/dashboards" replace />;
+      if (userPermissions.viewCalendario) return <Navigate to="/calendario" replace />;
+      if (userPermissions.viewHistorial) return <Navigate to="/historial" replace />;
+      if (userPermissions.viewConfiguracion) return <Navigate to="/configuracion" replace />;
+      
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '1rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--status-rojo-text)' }}>Acceso Denegado</h2>
+          <p style={{ color: 'var(--text-muted)' }}>No tienes permisos habilitados para ver este módulo. Por favor, contacta a tu administrador.</p>
+        </div>
+      );
+    }
+    return element;
+  };
 
   return (
     <Router>
@@ -23,13 +42,11 @@ function AppLayout() {
         <Sidebar />
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<BandejaOperativa />} />
-            <Route path="/dashboards" element={<DashboardCharts />} />
-            <Route path="/calendario" element={<BillingCalendar />} />
-            <Route path="/historial" element={<Historial />} />
-            
-            {/* Solo Admin puede ver configuración completa, pero la vista es la misma para simplificar */}
-            <Route path="/configuracion" element={<Configuracion />} />
+            <Route path="/" element={<ProtectedRoute element={<BandejaOperativa />} perm="viewBandeja" />} />
+            <Route path="/dashboards" element={<ProtectedRoute element={<DashboardCharts />} perm="viewDashboards" />} />
+            <Route path="/calendario" element={<ProtectedRoute element={<BillingCalendar />} perm="viewCalendario" />} />
+            <Route path="/historial" element={<ProtectedRoute element={<Historial />} perm="viewHistorial" />} />
+            <Route path="/configuracion" element={<ProtectedRoute element={<Configuracion />} perm="viewConfiguracion" />} />
             
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

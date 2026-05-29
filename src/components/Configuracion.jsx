@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Trash2, Plus, Edit2, Check, X, RefreshCw } from 'lucide-react';
+import { Trash2, Plus, Edit2, Check, X, RefreshCw, ShieldAlert, Key } from 'lucide-react';
 
 export default function Configuracion() {
-  const { users, addUser, deleteUser, providers, addProvider, updateProvider, deleteProvider, currentUser, resetData } = useAppContext();
+  const { 
+    users, addUser, deleteUser, 
+    providers, addProvider, updateProvider, deleteProvider, 
+    currentUser, resetData,
+    profiles, updateProfilePermissions, userPermissions
+  } = useAppContext();
+
+  // Permissions check
+  const canManageUsers = !!userPermissions.manageUsers;
+  const canManageProviders = currentUser?.role === 'admin' || userPermissions.viewConfiguracion; // View config permission implies viewing providers
+  const isAdmin = currentUser?.role === 'admin';
 
   // Provider form
   const [newPName, setNewPName] = useState('');
@@ -14,7 +24,7 @@ export default function Configuracion() {
   const [newUName, setNewUName] = useState('');
   const [newUEmail, setNewUEmail] = useState('');
   const [newUPass, setNewUPass] = useState('');
-  const [newURole, setNewURole] = useState('viewer');
+  const [newURole, setNewURole] = useState(profiles[1]?.id || 'viewer'); // defaults to viewer profile
 
   // Inline edit
   const [editingProvider, setEditingProvider] = useState(null);
@@ -23,8 +33,6 @@ export default function Configuracion() {
 
   // Delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { type: 'provider'|'user', id, name }
-
-  const isAdmin = currentUser?.role === 'admin';
 
   const handleAddProvider = (e) => {
     e.preventDefault();
@@ -63,7 +71,7 @@ export default function Configuracion() {
       <div className="page-header flex-between">
         <div>
           <h1 className="page-title">Configuración</h1>
-          <p className="page-subtitle">Administra el catálogo de proveedores y los usuarios del sistema.</p>
+          <p className="page-subtitle">Administra el catálogo de proveedores, los usuarios del sistema y sus perfiles de seguridad.</p>
         </div>
         {isAdmin && (
           <button className="btn btn-outline" onClick={resetData} style={{ gap: '0.375rem' }}>
@@ -147,9 +155,16 @@ export default function Configuracion() {
 
         {/* ═══ USUARIOS ═══ */}
         <div className="card animate-in animate-in-delay-1">
-          <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '1rem' }}>Gestión de Usuarios</h3>
+          <div className="flex-between" style={{ marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: '700' }}>Gestión de Usuarios</h3>
+            {!canManageUsers && (
+              <span style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--status-amarillo-text)', background: 'var(--status-amarillo-bg)', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid var(--status-amarillo-border)', fontWeight: '600' }}>
+                <ShieldAlert size={12} /> Solo Lectura
+              </span>
+            )}
+          </div>
 
-          {isAdmin && (
+          {canManageUsers ? (
             <form onSubmit={handleAddUser} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input type="text" className="form-input" placeholder="Nombre" value={newUName} onChange={e => setNewUName(e.target.value)} />
@@ -158,12 +173,17 @@ export default function Configuracion() {
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input type="password" className="form-input" placeholder="Contraseña" value={newUPass} onChange={e => setNewUPass(e.target.value)} />
                 <select className="form-select" value={newURole} onChange={e => setNewURole(e.target.value)}>
-                  <option value="viewer">Visor</option>
-                  <option value="admin">Administrador</option>
+                  {profiles.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
                 </select>
                 <button type="submit" className="btn btn-primary">Agregar</button>
               </div>
             </form>
+          ) : (
+            <div style={{ padding: '0.75rem', background: 'var(--bg-color)', borderRadius: 'var(--radius-md)', fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+              Tu perfil actual no cuenta con permisos para crear, editar o eliminar usuarios del sistema.
+            </div>
           )}
 
           <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
@@ -171,29 +191,127 @@ export default function Configuracion() {
               <thead>
                 <tr>
                   <th>Usuario</th>
-                  <th>Rol</th>
-                  {isAdmin && <th style={{ width: '50px' }}></th>}
+                  <th>Rol / Perfil</th>
+                  {canManageUsers && <th style={{ width: '50px' }}></th>}
                 </tr>
               </thead>
               <tbody>
-                {users.map(u => (
-                  <tr key={u.id}>
-                    <td>
-                      <div style={{ fontWeight: '600' }}>{u.name}</div>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{u.email}</div>
-                    </td>
-                    <td>
-                      <span className={`status-badge ${u.role === 'admin' ? 'azul' : 'verde'}`}>
-                        {u.role === 'admin' ? 'Admin' : 'Visor'}
-                      </span>
-                    </td>
-                    {isAdmin && (
+                {users.map(u => {
+                  const uProfile = profiles.find(p => p.id === u.role);
+                  return (
+                    <tr key={u.id}>
                       <td>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setDeleteConfirm({ type: 'user', id: u.id, name: u.name })} disabled={u.id === currentUser?.id}>
-                          <Trash2 size={14} color={u.id === currentUser?.id ? 'var(--text-muted)' : 'var(--status-rojo-text)'} />
-                        </button>
+                        <div style={{ fontWeight: '600' }}>{u.name}</div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{u.email}</div>
                       </td>
-                    )}
+                      <td>
+                        <span className={`status-badge ${u.role === 'admin' ? 'azul' : 'verde'}`}>
+                          {uProfile ? uProfile.name : u.role}
+                        </span>
+                      </td>
+                      {canManageUsers && (
+                        <td>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setDeleteConfirm({ type: 'user', id: u.id, name: u.name })} disabled={u.id === currentUser?.id}>
+                            <Trash2 size={14} color={u.id === currentUser?.id ? 'var(--text-muted)' : 'var(--status-rojo-text)'} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ═══ MATRIZ DE PERMISOS POR PERFIL ═══ */}
+        <div className="card animate-in animate-in-delay-2" style={{ gridColumn: 'span 2', marginTop: '0.5rem' }}>
+          <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Key size={16} color="var(--accent)" /> Matriz de Permisos por Perfil
+            </h3>
+            {!canManageUsers && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Solo Lectura</span>
+            )}
+          </div>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+            Define qué módulos de la aplicación puede visualizar cada perfil y si tiene la capacidad de administrar cuentas de usuario.
+          </p>
+
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '220px' }}>Perfil / Rol</th>
+                  <th style={{ textAlign: 'center', width: '130px' }}>Bandeja Operativa</th>
+                  <th style={{ textAlign: 'center', width: '120px' }}>Dashboards</th>
+                  <th style={{ textAlign: 'center', width: '130px' }}>Pagos Recurrentes</th>
+                  <th style={{ textAlign: 'center', width: '130px' }}>Historial Facturas</th>
+                  <th style={{ textAlign: 'center', width: '120px' }}>Configuración</th>
+                  <th style={{ textAlign: 'center', width: '130px' }}>Gestionar Usuarios</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profiles.map(p => (
+                  <tr key={p.id} style={{ cursor: 'default' }}>
+                    <td style={{ fontWeight: '700', color: 'var(--primary)' }}>
+                      <div>{p.name}</div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: '400' }}>ID: {p.id}</div>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={!!p.permissions.viewBandeja} 
+                        onChange={e => updateProfilePermissions(p.id, { viewBandeja: e.target.checked })}
+                        disabled={!canManageUsers || p.id === 'admin'}
+                        style={{ width: '16px', height: '16px', cursor: canManageUsers && p.id !== 'admin' ? 'pointer' : 'default' }}
+                      />
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={!!p.permissions.viewDashboards} 
+                        onChange={e => updateProfilePermissions(p.id, { viewDashboards: e.target.checked })}
+                        disabled={!canManageUsers || p.id === 'admin'}
+                        style={{ width: '16px', height: '16px', cursor: canManageUsers && p.id !== 'admin' ? 'pointer' : 'default' }}
+                      />
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={!!p.permissions.viewCalendario} 
+                        onChange={e => updateProfilePermissions(p.id, { viewCalendario: e.target.checked })}
+                        disabled={!canManageUsers || p.id === 'admin'}
+                        style={{ width: '16px', height: '16px', cursor: canManageUsers && p.id !== 'admin' ? 'pointer' : 'default' }}
+                      />
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={!!p.permissions.viewHistorial} 
+                        onChange={e => updateProfilePermissions(p.id, { viewHistorial: e.target.checked })}
+                        disabled={!canManageUsers || p.id === 'admin'}
+                        style={{ width: '16px', height: '16px', cursor: canManageUsers && p.id !== 'admin' ? 'pointer' : 'default' }}
+                      />
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={!!p.permissions.viewConfiguracion} 
+                        onChange={e => updateProfilePermissions(p.id, { viewConfiguracion: e.target.checked })}
+                        disabled={!canManageUsers || p.id === 'admin'}
+                        style={{ width: '16px', height: '16px', cursor: canManageUsers && p.id !== 'admin' ? 'pointer' : 'default' }}
+                      />
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={!!p.permissions.manageUsers} 
+                        onChange={e => updateProfilePermissions(p.id, { manageUsers: e.target.checked })}
+                        disabled={!canManageUsers || p.id === 'admin'}
+                        style={{ width: '16px', height: '16px', cursor: canManageUsers && p.id !== 'admin' ? 'pointer' : 'default' }}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
