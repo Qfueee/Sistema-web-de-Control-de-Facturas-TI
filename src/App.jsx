@@ -9,6 +9,8 @@ import BillingCalendar from './components/BillingCalendar';
 import Historial from './components/Historial';
 import Configuracion from './components/Configuracion';
 import Login from './components/Login';
+import AICopilot from './components/AICopilot';
+import Auditoria from './components/Auditoria';
 
 function AppLayout() {
   const { currentUser, userPermissions } = useAppContext();
@@ -47,10 +49,12 @@ function AppLayout() {
             <Route path="/calendario" element={<ProtectedRoute element={<BillingCalendar />} perm="viewCalendario" />} />
             <Route path="/historial" element={<ProtectedRoute element={<Historial />} perm="viewHistorial" />} />
             <Route path="/configuracion" element={<ProtectedRoute element={<Configuracion />} perm="viewConfiguracion" />} />
+            <Route path="/auditoria" element={<ProtectedRoute element={<Auditoria />} perm="viewAuditoria" />} />
             
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+        <AICopilot />
       </div>
     </Router>
   );

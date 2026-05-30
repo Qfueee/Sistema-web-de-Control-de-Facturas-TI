@@ -365,7 +365,7 @@ export default function Historial() {
                     {item.type === 'ocasional' ? (
                       <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
                         {item.capexOpex && (
-                          <span style={{ fontSize: '0.625rem', padding: '0.125rem 0.375rem', background: '#e2e8f0', borderRadius: '4px', fontWeight: '700' }}>
+                          <span style={{ fontSize: '0.625rem', padding: '0.125rem 0.375rem', background: '#e2e8f0', color: '#1e293b', borderRadius: '4px', fontWeight: '700' }}>
                             {item.capexOpex}
                           </span>
                         )}

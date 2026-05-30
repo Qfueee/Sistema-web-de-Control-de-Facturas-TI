@@ -117,7 +117,8 @@ const INITIAL_PROFILES = [
       viewCalendario: true,
       viewHistorial: true,
       viewConfiguracion: true,
-      manageUsers: true
+      manageUsers: true,
+      viewAuditoria: true
     }
   },
   {
@@ -129,9 +130,16 @@ const INITIAL_PROFILES = [
       viewCalendario: true,
       viewHistorial: true,
       viewConfiguracion: false,
-      manageUsers: false
+      manageUsers: false,
+      viewAuditoria: false
     }
   }
+];
+
+const INITIAL_AUDIT_LOGS = [
+  { id: 'log-1', timestamp: daysAgo(15), user: 'Sistema', email: 'sistema@casaideas.com', action: 'Inicialización', details: 'Base de datos de auditoría inicializada correctamente.' },
+  { id: 'log-2', timestamp: daysAgo(12), user: 'Admin TI', email: 'admin@casaideas.com', action: 'Creación de Compra', details: 'Se creó el trámite TR-001 (Lenovo Laptops) por S/ 8,200.00' },
+  { id: 'log-3', timestamp: daysAgo(5), user: 'Admin TI', email: 'admin@casaideas.com', action: 'Cambio de Estado', details: 'Se actualizó el estado del trámite TR-002 a Guía Remisión' }
 ];
 
 // ═══ PROVIDER ═══
@@ -158,6 +166,10 @@ export const AppContextProvider = ({ children }) => {
     const s = localStorage.getItem('ci_profiles');
     return s ? JSON.parse(s) : INITIAL_PROFILES;
   });
+  const [auditLogs, setAuditLogs] = useState(() => {
+    const s = localStorage.getItem('ci_audit_logs');
+    return s ? JSON.parse(s) : INITIAL_AUDIT_LOGS;
+  });
 
   // Pagos recurrentes marcados como pagados: { 'YYYY-MM-recurrentId': true }
   const [paidRecurrents, setPaidRecurrents] = useState(() => {
@@ -171,17 +183,65 @@ export const AppContextProvider = ({ children }) => {
   useEffect(() => { localStorage.setItem('ci_recurrents', JSON.stringify(recurrents)); }, [recurrents]);
   useEffect(() => { localStorage.setItem('ci_paid_recurrents', JSON.stringify(paidRecurrents)); }, [paidRecurrents]);
   useEffect(() => { localStorage.setItem('ci_profiles', JSON.stringify(profiles)); }, [profiles]);
+  useEffect(() => { localStorage.setItem('ci_audit_logs', JSON.stringify(auditLogs)); }, [auditLogs]);
 
   // Permisos dinámicos
   const userPermissions = profiles.find(p => p.id === currentUser?.role)?.permissions || {};
 
+  // Sanitización de Datos (Prevención XSS)
+  const sanitizeInput = (text) => {
+    if (typeof text !== 'string') return text;
+    // Remueve etiquetas HTML y scripts maliciosos de manera preventiva
+    return text.replace(/<[^>]*>/g, '').trim();
+  };
+
+  const sanitizeObject = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    const sanitized = {};
+    Object.entries(obj).forEach(([key, val]) => {
+      sanitized[key] = (typeof val === 'string') ? sanitizeInput(val) : val;
+    });
+    return sanitized;
+  };
+
+  // Auditoría
+  const addAuditLog = (action, details, userOverride = null) => {
+    const activeUser = userOverride || currentUser;
+    setAuditLogs(prev => [
+      {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        user: activeUser ? activeUser.name : 'Sistema',
+        email: activeUser ? activeUser.email : 'sistema@casaideas.com',
+        action: sanitizeInput(action),
+        details: sanitizeInput(details)
+      },
+      ...prev
+    ]);
+  };
+
+  const clearAuditLogs = () => {
+    if (currentUser?.role === 'admin') {
+      setAuditLogs([]);
+      addAuditLog('Limpieza de Historial', 'El administrador limpió el historial de auditoría.');
+    }
+  };
+
   // Auth
   const login = (email, password) => {
-    const user = users.find(u => u.email === email && u.password === password);
-    if (user) { setCurrentUser(user); return true; }
+    const sanitizedEmail = sanitizeInput(email);
+    const user = users.find(u => u.email === sanitizedEmail && u.password === password);
+    if (user) {
+      setCurrentUser(user);
+      addAuditLog('Inicio de Sesión', 'Usuario inició sesión exitosamente.', user);
+      return true;
+    }
     return false;
   };
-  const logout = () => setCurrentUser(null);
+  const logout = () => {
+    addAuditLog('Cierre de Sesión', 'Usuario cerró sesión.');
+    setCurrentUser(null);
+  };
 
   // Invoices
   const nextId = () => {
@@ -190,50 +250,88 @@ export const AppContextProvider = ({ children }) => {
   };
 
   const addInvoice = (invoice) => {
-    const provider = providers.find(p => p.id === invoice.provider_id);
+    const cleanInvoice = sanitizeObject(invoice);
+    const provider = providers.find(p => p.id === cleanInvoice.provider_id);
+    const id = nextId();
+    const pName = provider ? provider.name : 'Desconocido';
     setInvoices(prev => [{
-      ...invoice,
-      id: nextId(),
+      ...cleanInvoice,
+      id,
       date: new Date().toISOString(),
-      providerName: provider ? provider.name : 'Desconocido',
+      providerName: pName,
       status: 'cotizacion_recibida',
-      currency: invoice.currency || 'PEN',
-      notes: invoice.notes || ''
+      currency: cleanInvoice.currency || 'PEN',
+      notes: cleanInvoice.notes || ''
     }, ...prev]);
+    addAuditLog('Creación de Compra', `Se creó el trámite ${id} (${pName}) por un monto de ${formatCurrency(cleanInvoice.amount, cleanInvoice.currency)}`);
   };
 
   const updateInvoiceStatus = (id, newStatus) => {
     setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: newStatus } : inv));
+    const labels = {
+      cotizacion_recibida: 'Cotización',
+      orden_compra_enviada: 'Orden Compra',
+      guia_recibida: 'Guía Remisión',
+      factura_recibida: 'Factura',
+      enviado_contabilidad: 'Contabilizado',
+    };
+    addAuditLog('Cambio de Estado', `Se actualizó el estado del trámite ${id} a "${labels[newStatus] || newStatus}"`);
   };
 
   const updateInvoice = (id, data) => {
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...data } : inv));
+    const cleanData = sanitizeObject(data);
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...cleanData } : inv));
+    addAuditLog('Modificación de Compra', `Se actualizaron datos del trámite ${id}: ${Object.keys(cleanData).join(', ')}`);
   };
 
   const deleteInvoice = (id) => {
+    const inv = invoices.find(i => i.id === id);
+    const pName = inv ? inv.providerName : '';
     setInvoices(prev => prev.filter(inv => inv.id !== id));
+    addAuditLog('Eliminación de Compra', `Se eliminó el trámite ${id} ${pName ? `(${pName})` : ''}`);
   };
 
   // Providers
-  const addProvider = (p) => setProviders(prev => [...prev, { ...p, id: uuidv4() }]);
-  const updateProvider = (id, data) => setProviders(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+  const addProvider = (p) => {
+    const cleanP = sanitizeObject(p);
+    setProviders(prev => [...prev, { ...cleanP, id: uuidv4() }]);
+  };
+  const updateProvider = (id, data) => {
+    const cleanData = sanitizeObject(data);
+    setProviders(prev => prev.map(p => p.id === id ? { ...p, ...cleanData } : p));
+  };
   const deleteProvider = (id) => setProviders(prev => prev.filter(p => p.id !== id));
 
   // Users
-  const addUser = (u) => setUsers(prev => [...prev, { ...u, id: uuidv4() }]);
-  const updateUser = (id, data) => setUsers(prev => prev.map(u => u.id === id ? { ...u, ...data } : u));
+  const addUser = (u) => {
+    const cleanU = sanitizeObject(u);
+    setUsers(prev => [...prev, { ...cleanU, id: uuidv4() }]);
+  };
+  const updateUser = (id, data) => {
+    const cleanData = sanitizeObject(data);
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...cleanData } : u));
+  };
   const deleteUser = (id) => setUsers(prev => prev.filter(u => u.id !== id));
 
   // Recurrents
-  const addRecurrent = (item) => setRecurrents(prev => [...prev, { ...item, id: uuidv4() }]);
-  const updateRecurrent = (id, data) => setRecurrents(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
+  const addRecurrent = (item) => {
+    const cleanItem = sanitizeObject(item);
+    setRecurrents(prev => [...prev, { ...cleanItem, id: uuidv4() }]);
+  };
+  const updateRecurrent = (id, data) => {
+    const cleanData = sanitizeObject(data);
+    setRecurrents(prev => prev.map(r => r.id === id ? { ...r, ...cleanData } : r));
+  };
   const deleteRecurrent = (id) => setRecurrents(prev => prev.filter(r => r.id !== id));
 
   // Profiles
   const updateProfilePermissions = (profileId, newPermissions) => {
     setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, permissions: { ...p.permissions, ...newPermissions } } : p));
   };
-  const addProfile = (p) => setProfiles(prev => [...prev, { ...p, id: uuidv4() }]);
+  const addProfile = (p) => {
+    const cleanP = sanitizeObject(p);
+    setProfiles(prev => [...prev, { ...cleanP, id: uuidv4() }]);
+  };
   const deleteProfile = (id) => setProfiles(prev => prev.filter(p => p.id !== id));
 
   // Paid recurrents: marcar/desmarcar un pago recurrente como pagado en un mes
@@ -266,12 +364,14 @@ export const AppContextProvider = ({ children }) => {
     localStorage.removeItem('ci_recurrents');
     localStorage.removeItem('ci_paid_recurrents');
     localStorage.removeItem('ci_profiles');
+    localStorage.removeItem('ci_audit_logs');
     setUsers(INITIAL_USERS);
     setProviders(INITIAL_PROVIDERS);
     setInvoices(INITIAL_INVOICES);
     setRecurrents(INITIAL_RECURRENTS);
     setPaidRecurrents({});
     setProfiles(INITIAL_PROFILES);
+    setAuditLogs(INITIAL_AUDIT_LOGS);
   };
 
   return (
@@ -283,6 +383,7 @@ export const AppContextProvider = ({ children }) => {
       recurrents, addRecurrent, updateRecurrent, deleteRecurrent,
       paidRecurrents, isRecurrentPaid, toggleRecurrentPaid,
       profiles, updateProfilePermissions, addProfile, deleteProfile, userPermissions,
+      auditLogs, addAuditLog, clearAuditLogs,
       formatCurrency, resetData
     }}>
       {children}

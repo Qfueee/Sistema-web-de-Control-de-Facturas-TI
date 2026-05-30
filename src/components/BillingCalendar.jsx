@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Edit2, AlertTriangle, X, Plus, CheckCircle, 
 import { useAppContext } from '../context/AppContext';
 
 export default function BillingCalendar() {
-  const { recurrents, updateRecurrent, addRecurrent, deleteRecurrent, providers, formatCurrency, isRecurrentPaid, toggleRecurrentPaid } = useAppContext();
+  const { recurrents, updateRecurrent, addRecurrent, deleteRecurrent, providers, formatCurrency, isRecurrentPaid, toggleRecurrentPaid, paidRecurrents } = useAppContext();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [editingItem, setEditingItem] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -81,9 +81,21 @@ export default function BillingCalendar() {
   const closeModal = () => { setEditingItem(null); setIsAdding(false); };
 
   // Resumen mensual
-  const totalPEN = recurrents.filter(r => r.currency !== 'USD').reduce((s, r) => s + Number(r.amount || 0), 0);
-  const totalUSD = recurrents.filter(r => r.currency === 'USD').reduce((s, r) => s + Number(r.amount || 0), 0);
-  const paidCount = recurrents.filter(r => isRecurrentPaid(r.id, viewYear, viewMonth)).length;
+  // 1. Filtrar los pendientes (no pagados en el mes actual)
+  const pendingRecurrents = recurrents.filter(r => !isRecurrentPaid(r.id, viewYear, viewMonth));
+  const pendingPEN = pendingRecurrents.filter(r => r.currency !== 'USD').reduce((s, r) => s + Number(r.amount || 0), 0);
+  const pendingUSD = pendingRecurrents.filter(r => r.currency === 'USD').reduce((s, r) => s + Number(r.amount || 0), 0);
+
+  // 2. Filtrar los completados (pagados en el mes actual)
+  const paidRecurrentsList = recurrents.filter(r => isRecurrentPaid(r.id, viewYear, viewMonth));
+  const paidPEN = paidRecurrentsList.filter(r => r.currency !== 'USD').reduce((s, r) => s + Number(r.amount || 0), 0);
+  const paidUSD = paidRecurrentsList.filter(r => r.currency === 'USD').reduce((s, r) => s + Number(r.amount || 0), 0);
+
+  // 3. Totales generales programados
+  const scheduledPEN = recurrents.filter(r => r.currency !== 'USD').reduce((s, r) => s + Number(r.amount || 0), 0);
+  const scheduledUSD = recurrents.filter(r => r.currency === 'USD').reduce((s, r) => s + Number(r.amount || 0), 0);
+
+  const paidCount = paidRecurrentsList.length;
 
   return (
     <div>
@@ -169,16 +181,52 @@ export default function BillingCalendar() {
         {/* Panel Resumen */}
         <div className="calendar-summary">
           <div className="card" style={{ marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '1rem' }}>Resumen Mensual</h3>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-              {formatCurrency(totalPEN)}
-            </div>
-            {totalUSD > 0 && (
-              <div style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-muted)' }}>
-                + {formatCurrency(totalUSD, 'USD')}
+            <h3 style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '1rem', color: 'var(--primary)' }}>Resumen Mensual</h3>
+            
+            {/* Total Pendiente (Lo que falta pagar) */}
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.6875rem', fontWeight: '700', color: 'var(--status-amarillo-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Pendiente de Pago
               </div>
-            )}
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.375rem' }}>
+              <div style={{ fontSize: '1.625rem', fontWeight: '850', color: 'var(--text-main)', marginTop: '0.125rem' }}>
+                {formatCurrency(pendingPEN)}
+              </div>
+              {pendingUSD > 0 && (
+                <div style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                  + {formatCurrency(pendingUSD, 'USD')}
+                </div>
+              )}
+            </div>
+
+            <div className="sidebar-divider" style={{ margin: '0.75rem 0', opacity: 0.3 }} />
+
+            {/* Sub-totales adicionales */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <div>
+                <div style={{ fontSize: '0.625rem', color: 'var(--status-verde-text)', fontWeight: '700', textTransform: 'uppercase' }}>Pagado</div>
+                <div style={{ fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-main)', marginTop: '0.125rem' }}>
+                  {formatCurrency(paidPEN)}
+                </div>
+                {paidUSD > 0 && (
+                  <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+                    {formatCurrency(paidUSD, 'USD')}
+                  </div>
+                )}
+              </div>
+              <div>
+                <div style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>Programado</div>
+                <div style={{ fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-main)', marginTop: '0.125rem' }}>
+                  {formatCurrency(scheduledPEN)}
+                </div>
+                {scheduledUSD > 0 && (
+                  <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+                    {formatCurrency(scheduledUSD, 'USD')}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.875rem', fontWeight: '500' }}>
               {recurrents.length} pagos programados · {paidCount} pagados
             </div>
           </div>

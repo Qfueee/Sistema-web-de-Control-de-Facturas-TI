@@ -34,6 +34,10 @@ export default function Configuracion() {
   // Delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { type: 'provider'|'user', id, name }
 
+  // Reset safety check
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetVerificationText, setResetVerificationText] = useState('');
+
   const handleAddProvider = (e) => {
     e.preventDefault();
     if (!newPName) return;
@@ -74,7 +78,7 @@ export default function Configuracion() {
           <p className="page-subtitle">Administra el catálogo de proveedores, los usuarios del sistema y sus perfiles de seguridad.</p>
         </div>
         {isAdmin && (
-          <button className="btn btn-outline" onClick={resetData} style={{ gap: '0.375rem' }}>
+          <button className="btn btn-outline" onClick={() => setShowResetConfirm(true)} style={{ gap: '0.375rem' }}>
             <RefreshCw size={14} /> Resetear Datos
           </button>
         )}
@@ -237,7 +241,6 @@ export default function Configuracion() {
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
             Define qué módulos de la aplicación puede visualizar cada perfil y si tiene la capacidad de administrar cuentas de usuario.
           </p>
-
           <div className="table-container">
             <table className="data-table">
               <thead>
@@ -249,6 +252,7 @@ export default function Configuracion() {
                   <th style={{ textAlign: 'center', width: '130px' }}>Historial Facturas</th>
                   <th style={{ textAlign: 'center', width: '120px' }}>Configuración</th>
                   <th style={{ textAlign: 'center', width: '130px' }}>Gestionar Usuarios</th>
+                  <th style={{ textAlign: 'center', width: '120px' }}>Auditoría</th>
                 </tr>
               </thead>
               <tbody>
@@ -312,6 +316,15 @@ export default function Configuracion() {
                         style={{ width: '16px', height: '16px', cursor: canManageUsers && p.id !== 'admin' ? 'pointer' : 'default' }}
                       />
                     </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={!!p.permissions.viewAuditoria} 
+                        onChange={e => updateProfilePermissions(p.id, { viewAuditoria: e.target.checked })}
+                        disabled={!canManageUsers || p.id === 'admin'}
+                        style={{ width: '16px', height: '16px', cursor: canManageUsers && p.id !== 'admin' ? 'pointer' : 'default' }}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -331,6 +344,53 @@ export default function Configuracion() {
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
               <button className="btn btn-outline" onClick={() => setDeleteConfirm(null)}>Cancelar</button>
               <button className="btn btn-danger" onClick={confirmDelete}>Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal de confirmación para reseteo completo de datos */}
+      {showResetConfirm && (
+        <div className="confirm-overlay" onClick={() => { setShowResetConfirm(false); setResetVerificationText(''); }}>
+          <div className="confirm-dialog animate-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--status-rojo-text)' }}>
+              <RefreshCw size={18} className="rag-loader" style={{ animationDuration: '3s' }} /> Restablecer Base de Datos
+            </h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: '1.5' }}>
+              Esta acción eliminará todos los trámites, facturas, proveedores, usuarios adicionales y logs de auditoría permanentemente. Esta acción no se puede deshacer.
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1rem', fontWeight: '600' }}>
+              Para confirmar el restablecimiento completo, escribe <strong style={{ color: 'var(--text-main)' }}>RESET</strong> a continuación:
+            </p>
+            
+            <input 
+              type="text" 
+              className="form-input" 
+              style={{ marginBottom: '1.5rem', textTransform: 'uppercase', textAlign: 'center', letterSpacing: '0.1em', fontWeight: '700' }}
+              placeholder="Escribe RESET aquí..."
+              value={resetVerificationText}
+              onChange={e => setResetVerificationText(e.target.value)}
+            />
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-outline" onClick={() => { setShowResetConfirm(false); setResetVerificationText(''); }}>
+                Cancelar
+              </button>
+              <button 
+                className="btn btn-danger" 
+                disabled={resetVerificationText.toUpperCase() !== 'RESET'}
+                onClick={() => {
+                  resetData();
+                  setShowResetConfirm(false);
+                  setResetVerificationText('');
+                }}
+                style={{ 
+                  background: resetVerificationText.toUpperCase() === 'RESET' ? 'var(--status-rojo-text)' : 'var(--text-muted)',
+                  color: 'white',
+                  cursor: resetVerificationText.toUpperCase() === 'RESET' ? 'pointer' : 'default'
+                }}
+              >
+                Restablecer Todo
+              </button>
             </div>
           </div>
         </div>
